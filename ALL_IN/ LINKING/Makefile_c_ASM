@@ -1,0 +1,16 @@
+# Makefile pentru linking între C și ASM (apel C -> ASM)
+# main.c apelează asm_func din asm_func.asm
+
+all: program
+
+program: main.o asm_func.o
+	gcc -m32 main.o asm_func.o -o program
+
+main.o: main.c
+	gcc -m32 -c main.c
+
+asm_func.o: asm_func.asm
+	nasm -f elf32 asm_func.asm
+
+clean:
+	rm -f *.o program

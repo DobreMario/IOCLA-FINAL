@@ -1,0 +1,16 @@
+# Makefile pentru linking doar fișiere C
+# main.c, utils.c
+
+all: program
+
+program: main.o utils.o
+	gcc main.o utils.o -o program
+
+main.o: main.c
+	gcc -c main.c
+
+utils.o: utils.c
+	gcc -c utils.c
+
+clean:
+	rm -f *.o program

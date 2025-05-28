@@ -1,0 +1,11 @@
+# Makefile_dynamic
+all: program
+
+program: main.o
+	gcc main.o -o program -lm # linking dinamic cu libm.so (math)
+
+main.o: main.c
+	gcc -c main.c
+
+clean:
+	rm -f *.o program

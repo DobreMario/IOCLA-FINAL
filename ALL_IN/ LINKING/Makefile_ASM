@@ -1,0 +1,16 @@
+# Makefile pentru linking între două fișiere ASM
+# main.asm și functie.asm -> program
+
+all: program
+
+program: main.o functie.o
+	ld -m elf_i386 main.o functie.o -o program
+
+main.o: main.asm
+	nasm -f elf32 main.asm
+
+functie.o: functie.asm
+	nasm -f elf32 functie.asm
+
+clean:
+	rm -f *.o program

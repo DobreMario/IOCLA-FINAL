@@ -1,0 +1,17 @@
+# Makefile_static
+all: program
+
+program: main.o libfoo.a
+	gcc main.o -o program -static -L. -lfoo # linking static cu libfoo.a
+
+main.o: main.c
+	gcc -c main.c
+
+libfoo.a: foo.o
+	ar rcs libfoo.a foo.o
+
+foo.o: foo.c
+	gcc -c foo.c
+
+clean:
+	rm -f *.o *.a program

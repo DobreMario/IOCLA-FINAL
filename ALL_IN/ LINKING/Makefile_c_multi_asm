@@ -1,0 +1,19 @@
+# Makefile pentru linking între mai multe fișiere C și ASM
+# main.c, utils.c, asm_func.asm
+
+all: program
+
+program: main.o utils.o asm_func.o
+	gcc -m32 main.o utils.o asm_func.o -o program
+
+main.o: main.c
+	gcc -m32 -c main.c
+
+utils.o: utils.c
+	gcc -m32 -c utils.c
+
+asm_func.o: asm_func.asm
+	nasm -f elf32 asm_func.asm
+
+clean:
+	rm -f *.o program
