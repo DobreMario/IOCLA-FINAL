@@ -17,6 +17,7 @@ ALL_IN/
 │   └── Makefile_static
 ├── C_MEMORY/           # Declarații de variabile în C în diferite zone de memorie
 │   └── README.md       # Explicații despre variabile exportabile și neexportabile
+│   └── cheatsheet.md   # Magie neagra
 ```
 
 ## 📚 Conținut
