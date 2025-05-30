@@ -121,20 +121,67 @@ Acest document conține informații despre programarea în limbaj de asamblare (
     ```
 
 ## 2.4 Instrucțiuni de Multiplicare și Împărțire
-- **mul src**: Realizează o multiplicare fără semn între valoarea din sursă și valoarea implicită din `EAX`. Rezultatul este stocat în `EDX:EAX` (partea superioară în `EDX`, partea inferioară în `EAX`).
-  - Exemplu:
-    ```asm
-    mov eax, 5
-    mul ebx ; EAX = EAX * EBX
-    ```
+- **mul src**: Realizează o multiplicare fără semn între valoarea din sursă și valoarea implicită din `EAX` (sau `AX`/`AL` în funcție de dimensiune). Rezultatul este stocat în `EDX:EAX` (sau `DX:AX`, `AH:AL`).
+  - Pentru **mulțirea pe 8 biți** (`mul bl`):
+    - `AL * bl` → rezultatul (16 biți) este stocat în `AX` (`AH:AL`).
+    - Exemplu:
+      ```asm
+      mov al, 5
+      mov bl, 10
+      mul bl ; AX = AL * BL (rezultat pe 16 biți)
+      ```
+  - Pentru **mulțirea pe 16 biți** (`mul bx`):
+    - `AX * bx` → rezultatul (32 biți) este stocat în `DX:AX`.
+    - Exemplu:
+      ```asm
+      mov ax, 1000
+      mov bx, 3
+      mul bx ; DX:AX = AX * BX (rezultat pe 32 biți)
+      ```
+  - Pentru **mulțirea pe 32 biți** (`mul ebx`):
+    - `EAX * ebx` → rezultatul (64 biți) este stocat în `EDX:EAX`.
+    - Exemplu:
+      ```asm
+      mov eax, 5
+      mov ebx, 10
+      mul ebx ; EDX:EAX = EAX * EBX (rezultat pe 64 biți)
+      ```
+  - **Atenție:** Dacă rezultatul nu încape în registrul de bază (ex: AL, AX, EAX), partea superioară (`AH`, `DX`, `EDX`) va fi diferită de zero.
 
-- **div src**: Realizează o împărțire fără semn între valoarea din `EDX:EAX` și valoarea din sursă. Rezultatul este stocat în `EAX` (câtul) și `EDX` (restul).
-  - Exemplu:
-    ```asm
-    mov eax, 10
-    xor edx, edx ; Resetează EDX
-    div ebx ; EAX = EAX / EBX, EDX = EAX % EBX
-    ```
+- **div src**: Realizează o împărțire fără semn între valoarea din `EDX:EAX` (sau `DX:AX`, `AH:AL`) și valoarea din sursă. Rezultatul este stocat în registrul de bază (câtul) și registrul superior (restul).
+  - Pentru **împărțirea pe 8 biți** (`div bl`):
+    - `AX / bl` → câtul în `AL`, restul în `AH`.
+    - Exemplu:
+      ```asm
+      mov ax, 100
+      mov bl, 7
+      div bl ; AL = AX / BL (cât), AH = AX % BL (rest)
+      ```
+  - Pentru **împărțirea pe 16 biți** (`div bx`):
+    - `DX:AX / bx` → câtul în `AX`, restul în `DX`.
+    - Exemplu:
+      ```asm
+      mov dx, 0
+      mov ax, 1000
+      mov bx, 7
+      div bx ; AX = (DX:AX) / BX (cât), DX = rest
+      ```
+  - Pentru **împărțirea pe 32 biți** (`div ebx`):
+    - `EDX:EAX / ebx` → câtul în `EAX`, restul în `EDX`.
+    - Exemplu:
+      ```asm
+      mov edx, 0
+      mov eax, 1000
+      mov ebx, 7
+      div ebx ; EAX = (EDX:EAX) / EBX (cât), EDX = rest
+      ```
+  - **Atenție:** Înainte de împărțire, registrul superior (`AH`, `DX`, `EDX`) trebuie să fie 0 pentru a evita rezultate neașteptate.
+
+### Note suplimentare
+- Pentru **mul** și **div**, dimensiunea operandului determină registrele implicate și dimensiunea rezultatului.
+- Pentru operații cu semn, se folosesc instrucțiunile `imul` (înmulțire cu semn) și `idiv` (împărțire cu semn), cu aceleași reguli de registre.
+- Dacă rezultatul nu încape în registrul de bază, se setează flag-ul de overflow.
+- Împărțirea la zero produce excepție (crash).
 
 ## 2.5 Instrucțiuni de Salt (Jump)
 Instrucțiunile de salt sunt utilizate pentru a controla fluxul execuției în funcție de condiții sau necondiționat.
@@ -744,4 +791,137 @@ Linker-ul caută pentru fiecare simbol nerezolvat o definiție într-un alt fiș
 ## 12.10 Resurse suplimentare
 
 - [Linking - Hardware Software Interface](https://cs-pub-ro.github.io/hardware-software-interface/labs/lab-11/reading/linking.html)
-- [GNU Linker Documentation](https://sourceware.org/binutils/docs/ld/)
+
+---
+
+## Exemplu de payload pentru buffer overflow
+
+O comandă Python utilă pentru testarea buffer overflow-urilor:
+
+```bash
+python3 -c 'import sys; sys.stdout.buffer.write(b"A" * 24 + b"\xa6\x91\x04\x44")'
+```
+
+**Explicație:**
+- Creează un șir de 24 de caractere "A" (24 bytes cu valoarea 0x41).
+- Adaugă la final 4 bytes cu valorile hexazecimale: 0xa6, 0x91, 0x04, 0x44.
+- Scrie acest șir binar direct la ieșirea standard (stdout), fără conversie la text.
+- Se folosește pentru a umple un buffer și a suprascrie adresa de returnare (de exemplu, la exploatarea unui buffer overflow).
+- Adresa 0x440491a6 este scrisă în format little-endian (octeții inversați față de cum apar în memorie).
+
+**Scop:**
+- Testarea vulnerabilităților de tip buffer overflow, suprascrierea adresei de returnare sau a altor date critice pe stivă.
+
+---
+
+## Exemple suplimentare de payload pentru buffer overflow
+
+### 1. Suprascrierea adresei de returnare cu adresa unei funcții (ex: win)
+
+Dacă vrei să redirecționezi execuția către o funcție existentă (de exemplu, `win()`), trebuie să determini offset-ul până la adresa de returnare și să folosești adresa funcției în format little-endian.
+
+```bash
+python3 -c 'import sys; sys.stdout.buffer.write(b"A" * <offset> + b"\x<adresa_win>")'
+```
+
+**Exemplu concret:**
+Dacă offset-ul este 40 și adresa funcției `win` este `0x080491b6`:
+```bash
+python3 -c 'import sys; sys.stdout.buffer.write(b"A" * 40 + b"\xb6\x91\x04\x08")'
+```
+
+### 2. Payload cu shellcode (execve /bin/sh)
+
+Poți injecta shellcode direct în buffer, urmat de padding și adresa de returnare care să pointeze înapoi în buffer (sau într-un NOP sled).
+
+```bash
+python3 -c 'import sys; sys.stdout.buffer.write(b"\x90"*16 + b"<shellcode>" + b"A"*(<offset>-<shellcode_len>-16) + b"<adresa_buffer>")'
+```
+
+**Exemplu simplificat:**
+```bash
+python3 -c 'import sys; sys.stdout.buffer.write(b"\x90"*16 + b"\x31\xc0..." + b"A"*8 + b"\x40\xf0\xff\xbf")'
+```
+- `\x90`*16: NOP sled (instrucțiuni NOP pentru a crește șansa de execuție corectă)
+- `<shellcode>`: codul shellcode (ex: execve /bin/sh)
+- `A`*8: padding până la adresa de returnare
+- `\x40\xf0\xff\xbf`: adresa de start a bufferului (exemplu, trebuie determinată cu gdb)
+
+### 3. Cum determini offset-ul și adresa corectă
+- Folosește un pattern generator (ex: `pwntools`, `pattern_create.rb`) pentru a determina offset-ul exact până la adresa de returnare.
+- Adresa de returnare trebuie să fie în format little-endian (octeții inversați).
+- Adresa funcției sau a bufferului se poate afla cu `nm`, `objdump`, sau cu un debugger (`gdb`).
+
+### Notă de securitate
+- Aceste exemple sunt pentru scopuri educaționale! Nu folosiți tehnici de exploatare pe sisteme fără permisiune.
+
+---
+
+# Sfaturi esențiale pentru programarea în ASM (x86)
+
+1. **Registrele și utilizarea lor**
+   - Cunoaște registrele generale (EAX, EBX, ECX, EDX), de index (ESI, EDI), de stivă (ESP, EBP), de segment și de control.
+   - Înțelege accesul parțial la registre (ex: AL, AH, AX, EAX).
+
+2. **Instrucțiuni de bază**
+   - `mov`, `push`, `pop`, `lea`, `xchg` – mutarea și manipularea datelor.
+   - Instrucțiuni aritmetice și logice: `add`, `sub`, `and`, `or`, `xor`, `test`.
+
+3. **Stiva și apelul de funcții**
+   - Cum funcționează stiva (crește în jos, ESP/EBP).
+   - Prolog/epilog de funcție, transmiterea parametrilor, returnarea valorilor.
+   - Convenții de apel (cdecl, stdcall, fastcall).
+
+4. **Salturi și controlul fluxului**
+   - Salturi necondiționate și condiționate (`jmp`, `je`, `jne`, etc.).
+   - Utilizarea flag-urilor și instrucțiunilor de comparație (`cmp`, `test`).
+
+5. **Directive de date și organizarea memoriei**
+   - Definirea datelor cu `db`, `dw`, `dd`, `resb`, `resw`, `resd`.
+   - Diferența dintre `.data`, `.bss`, `.text`, `.rodata`.
+
+6. **Structuri și vectori**
+   - Definirea și accesarea structurilor și vectorilor.
+   - Calculul offset-urilor manual.
+
+7. **Linking și vizibilitatea simbolurilor**
+   - `global`, `extern`, linking între fișiere ASM sau ASM+C.
+   - Erori frecvente la linking.
+
+8. **Vulnerabilități și siguranță**
+   - Cum apar buffer overflow-urile și cum pot fi prevenite.
+   - Importanța validării inputului și folosirii funcțiilor sigure.
+
+9. **Debugging și instrumente**
+   - Folosește `gdb`, `objdump`, `nm`, `ldd` pentru analiză și depanare.
+   - Înțelege layout-ul stivei și al memoriei pentru debugging.
+
+10. **Optimizare și detalii avansate**
+    - Folosește instrucțiuni speciale pentru performanță (`imul`, `idiv`, instrucțiuni SIMD).
+    - Atenție la alinierea datelor și la structuri (padding).
+    - Înțelege efectul side-effect-urilor și al hazardelor de date.
+
+# Macro util: PRINTF32
+
+Un macro frecvent folosit pentru afișarea unui număr întreg pe 32 de biți (din EAX) folosind printf din C:
+
+```asm
+PRINTF32  `%d\n\x0`, eax
+```
+
+**Utilizare:**
+- Se folosește pentru a afișa rapid valoarea din registrul EAX ca întreg zecimal, urmat de newline.
+- Exemplu de apel în cod ASM (NASM, cu interfață C):
+  ```asm
+  push eax
+  push format_int
+  call printf
+  add esp, 8
+  ; unde format_int db '%d', 10, 0
+  ```
+- Poți folosi macro-ul pentru a evita scrierea repetată a formatului și a registrului.
+
+**Notă:**
+- Macro-ul presupune că folosești convenția de apel C și că ai definit formatul de string corespunzător în secțiunea de date.
+
+---
